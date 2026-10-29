@@ -1,14 +1,17 @@
 # Jully
 
-Assistente de voz em segundo plano para Windows. Diga a palavra de ativação e fale o pedido.
+🌎 English · [Português (Brasil)](README.pt-BR.md)
+
+A background voice assistant for Windows. Say the wake word and speak your request.
 
 ```
-openWakeWord (escuta leve) → bipe → grava até o silêncio → faster-whisper → LLM (Groq) + ferramentas → edge-tts
+openWakeWord (light listening) → beep → record until silence → faster-whisper → LLM (Groq) + tools → edge-tts
 ```
 
-O faster-whisper só transcreve depois da palavra de ativação; no resto do tempo só o openWakeWord roda.
+faster-whisper only transcribes after the wake word; the rest of the time only openWakeWord runs.
+Jully understands and answers in **English or Portuguese** (setting `LANGUAGE`).
 
-## Instalação
+## Installation
 
 ```powershell
 python -m venv .venv
@@ -16,40 +19,88 @@ python -m venv .venv
 copy .env.example .env
 ```
 
-### 1. Chave da IA (Groq, grátis, sem cartão)
-1. Entre em https://console.groq.com e faça login (Google ou e-mail).
-2. Vá em **API Keys → Create API Key**, dê um nome (ex.: `jully`) e copie a chave (`gsk_...`). Ela só aparece uma vez.
-3. Cole em `LLM_API_KEY=` no `.env`.
+### 1. AI key (Groq, free, no credit card)
+1. Go to https://console.groq.com and sign in (Google or e-mail).
+2. Open **API Keys → Create API Key**, name it (e.g. `jully`) and copy the key (`gsk_...`). It is shown only once.
+3. Paste it in the **AI** tab of the settings window, or in `LLM_API_KEY=` in the `.env`.
 
-O plano grátis tem limite de pedidos por minuto/dia, mais que suficiente para uso pessoal.
-Para usar outro provedor (Gemini, OpenRouter, Ollama local), troque `LLM_BASE_URL`, `LLM_MODEL` e `LLM_API_KEY` no `.env`.
+The free plan has per-minute and per-day request limits, more than enough for personal use.
+To use another provider (Gemini, OpenRouter, local Ollama), change the address, model and key in the **AI** tab
+(or `LLM_BASE_URL`, `LLM_MODEL` and `LLM_API_KEY` in the `.env`). Local Ollama needs no key.
 
-### 2. Palavra de ativação
-Por padrão usa o modelo pronto **"Hey Jarvis"** (`WAKEWORD=hey_jarvis`), baixado sozinho na primeira execução.
-Se ele ativar à toa ou não ouvir você, ajuste `WAKEWORD_LIMIAR` no `.env` (0.5 padrão; suba para ativar menos, desça para ativar mais).
+### 2. Wake word
+By default it uses the ready-made **"Hey Jarvis"** model (`WAKEWORD=hey_jarvis`), downloaded on the first run.
+If it triggers by accident or does not hear you, adjust **Sensitivity** in the Wake word tab
+(`WAKEWORD_THRESHOLD` in the `.env`, 0.35 by default; raise it to trigger less, lower it to trigger more).
 
-Para trocar por "Hey Jully", treine um modelo com o notebook de treino automático do openWakeWord
-(https://github.com/dscripka/openWakeWord, seção *Training New Models*), coloque o `.onnx` em `models/`
-e use `WAKEWORD=models/hey_jully.onnx` no `.env`.
+To use "Hey Jully" instead, train a model with the automatic training notebook from openWakeWord
+(https://github.com/dscripka/openWakeWord, section *Training New Models*), put the `.onnx` in `models/`
+and set `WAKEWORD=models/hey_jully.onnx` in the `.env`.
 
-## Uso
+## Usage
 
 ```powershell
-.venv\Scripts\python main.py        # com console, para testar
-.venv\Scripts\pythonw main.py       # sem janela
-.\instalar_inicio.ps1               # abrir junto com o Windows
+.venv\Scripts\python main.py        # with a console, for testing
+.venv\Scripts\pythonw main.py       # no window
+.\install_startup.ps1               # start with Windows
 ```
 
-Ícone na bandeja do sistema: **Pausar** e **Sair**. Logs em `jully.log`.
+System tray icon: **Open window**, **Settings**, **Pause wake word** and **Quit**. Logs go to `jully.log`.
 
-## Exemplos
+## Settings
 
-- "Hey Jarvis, quanto é 23 vezes 5? Coloca na minha área de transferência."
-- "..., tira um print da tela."
-- "..., o que tem na minha tela?"
-- "..., abre o YouTube." / "abre a calculadora"
-- "..., me avisa em 10 minutos para tirar a roupa da máquina."
-- "..., anota que preciso comprar leite."
-- "..., volume em 30." / "bloqueia a tela"
+The gear icon in the window opens the settings, which write straight to your `.env` (comments and order are preserved):
 
-Apps e pastas que podem ser abertos por voz ficam em `config.py` (`APPS`). Não há ferramenta de comando livre no terminal, de propósito.
+- **AI:** provider, API key, address, text and vision models, and a button to test the connection.
+- **Voice:** language, voice, speech rate (with a button to hear a sample) and the Whisper model/device.
+- **Wake word:** wake word, sensitivity, microphone, gain and minimum speech volume.
+- **General:** keep listening after a reply, what "look at screen" captures, default weather city and allowed websites.
+
+Almost everything applies immediately. Changing the wake word or the microphone needs a restart (the window offers to restart).
+If the AI key is missing, the settings open by themselves on startup.
+
+## Examples
+
+- "Hey Jarvis, what is 23 times 5? Put it on my clipboard."
+- "..., take a screenshot."
+- "..., what's on my screen?"
+- "..., open YouTube." / "open the calculator"
+- "..., remind me in 10 minutes to take the laundry out."
+- "..., take a note: buy milk."
+- "..., volume to 30." / "lock the screen"
+- "..., pause the music." / "next track"
+- "..., what's the weather in London?"
+- "..., remind me tomorrow at 9am to call the bank."
+
+Apps and folders that can be opened by voice are in `config.py` (`APPS`). Websites only open if their domain is in the allowed
+sites list (settings). There is no free-form terminal tool, on purpose.
+
+Timers and reminders are saved in `timers.json` and still fire if Jully is closed and opened again.
+
+## Privacy
+
+- What you say is transcribed on your PC (Whisper). Only the **text** of the request goes to the AI provider.
+- "What's on my screen?" sends a **screenshot** (all monitors, or only the active window, depending on the setting) to the AI provider.
+- Weather queries Open-Meteo (no key) with the city name.
+
+## Development
+
+```powershell
+.venv\Scripts\pip install -r requirements-dev.txt
+.venv\Scripts\python -m pytest
+```
+
+| File | What it does |
+| --- | --- |
+| `main.py` | Entry point: tray icon, window and the main loop |
+| `listen.py` / `speak.py` | Microphone, wake word and Whisper / text-to-speech |
+| `brain.py` / `llm.py` | Conversation with the model and tool calling |
+| `tools.py` | The things Jully can do (clipboard, screen, timers, weather...) |
+| `config.py` / `envfile.py` / `i18n.py` | Settings, `.env` reading/writing, spoken texts |
+| `ui.py` / `settings_ui.py` / `theme.py` | Chat window, settings window, shared look |
+
+## Upgrading from the Portuguese-only version
+
+Old setting names (`VOZ`, `REPLICA`, `CIDADE`...) are renamed in your `.env` automatically on the first run, and
+`LANGUAGE=pt` is added so Jully keeps speaking Portuguese. Screenshots now go to `Pictures\Jully Screenshots` and notes to
+`Documents\Jully Notes\notes.txt`; move your old files from `Capturas Jully` and `Notas Jully` if you want to keep them together.

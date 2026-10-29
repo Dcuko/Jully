@@ -3,3 +3,5 @@ models/
 jully.log
 __pycache__/
 .venv/
+timers.json
+.pytest_cache/

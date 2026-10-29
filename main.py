@@ -1,6 +1,7 @@
 import ctypes
 import logging
 import queue
+import subprocess
 import sys
 import threading
 import winsound
@@ -10,122 +11,122 @@ import pystray
 from PIL import Image, ImageDraw
 
 import config
+import tools
 
 logging.basicConfig(
-    filename=config.RAIZ / "jully.log",
+    filename=config.ROOT / "jully.log",
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
     encoding="utf-8",
 )
 log = logging.getLogger("jully")
-for ruidoso in ("httpx", "httpcore", "huggingface_hub", "urllib3"):
-    logging.getLogger(ruidoso).setLevel(logging.WARNING)
+for noisy in ("httpx", "httpcore", "huggingface_hub", "urllib3"):
+    logging.getLogger(noisy).setLevel(logging.WARNING)
 
-parar = threading.Event()
-pausado = threading.Event()
-fila = queue.Queue()  # pedidos vindos da janela: ("texto", str) ou ("mic", None)
-janela = None
+stop = threading.Event()
+paused = threading.Event()
+requests = queue.Queue()  # requests from the window: ("text", str) or ("mic", None)
+window = None
+restart = False
 
 
-def erro_fatal(msg):
+def fatal_error(msg):
     log.error(msg)
     ctypes.windll.user32.MessageBoxW(0, msg, "Jully", 0x10)
     sys.exit(1)
 
 
-def validar():
-    faltando = []
-    if not config.LLM_API_KEY:
-        faltando.append("LLM_API_KEY no .env")
+def validate():
+    missing = []  # the AI key is not checked here: if it is missing, the settings window opens by itself
     if config.WAKEWORD.endswith((".onnx", ".tflite")) and not Path(config.WAKEWORD).exists():
-        faltando.append(f"arquivo {config.WAKEWORD}")
-    if faltando:
-        erro_fatal("Falta configurar:\n- " + "\n- ".join(faltando) + "\n\nVeja o README.")
+        missing.append(f"file {config.WAKEWORD}")
+    if missing:
+        fatal_error("Something is not configured:\n- " + "\n- ".join(missing) + "\n\nFix it in the .env (see the README).")
 
 
-def laco():
+def loop():
     try:
-        _laco()
+        _loop()
     except Exception:
-        log.exception("o laço principal caiu")
-        erro_fatal("A Jully parou por um erro. Veja jully.log.")
+        log.exception("the main loop crashed")
+        fatal_error("Jully stopped because of an error. See jully.log.")
 
 
-def _laco():
-    import cerebro
-    import falar
-    from ouvir import Ouvido
+def _loop():
+    import brain
+    import speak
+    from listen import Ear
 
     try:
-        ouvido = Ouvido()
+        ear = Ear()
     except Exception as e:
-        erro_fatal(f"Não consegui iniciar o microfone/wake word:\n{e}")
+        fatal_error(f"Could not start the microphone/wake word:\n{e}")
 
-    def interromper():
-        return parar.is_set() or pausado.is_set() or not fila.empty()
+    def interrupted():
+        return stop.is_set() or paused.is_set() or not requests.empty()
 
-    log.info("Jully pronta, aguardando a palavra de ativação (%s)", config.WAKEWORD)
-    replica = False  # logo após uma resposta, escuta a continuação sem palavra de ativação
-    while not parar.is_set():
-        tipo, valor = None, None
+    log.info("Jully ready, waiting for the wake word (%s)", config.WAKEWORD)
+    follow_up = False  # right after a reply, listen for a continuation without the wake word
+    while not stop.is_set():
+        kind, value = None, None
 
-        if pausado.is_set():  # pausada: só a janela (texto e microfone) funciona
+        if paused.is_set():  # paused: only the window (text and microphone) works
             try:
-                tipo, valor = fila.get(timeout=0.2)
+                kind, value = requests.get(timeout=0.2)
             except queue.Empty:
                 continue
-        elif not fila.empty():
-            tipo, valor = fila.get_nowait()
-        elif replica:
-            tipo = "replica"
-        elif ouvido.esperar_wake(interromper):
-            tipo = "wake"
+        elif not requests.empty():
+            kind, value = requests.get_nowait()
+        elif follow_up:
+            kind = "follow_up"
+        elif ear.wait_for_wake(interrupted):
+            kind = "wake"
         else:
             continue
 
-        replica = False
-        if tipo in ("wake", "mic", "replica"):
-            if tipo == "wake":
-                log.info("palavra de ativação detectada")
+        follow_up = False
+        if kind in ("wake", "mic", "follow_up"):
+            if kind == "wake":
+                log.info("wake word detected")
                 winsound.Beep(880, 120)
-            elif tipo == "mic":
-                ouvido.pausar()  # descarta áudio velho do buffer
-                ouvido.retomar()
-            janela.definir_status("Ouvindo…")
-            audio = ouvido.gravar()  # igual após o "hey jarvis": espera você começar e só corta no silêncio
+            elif kind == "mic":
+                ear.pause()  # drop stale audio from the buffer
+                ear.resume()
+            window.set_status("Listening…")
+            audio = ear.record()  # same as after the wake word: waits for you to start and cuts at the silence
             if audio is None:
-                janela.definir_status("")
+                window.set_status("")
                 continue
-            janela.definir_status("Transcrevendo…")
-            texto = ouvido.transcrever(audio)
+            window.set_status("Transcribing…")
+            text = ear.transcribe(audio)
         else:
-            texto = valor
+            text = value
 
-        log.info("pedido: %s", texto)
-        if not texto:
-            janela.definir_status("")
+        log.info("request: %s", text)
+        if not text:
+            window.set_status("")
             continue
 
-        janela.adicionar("voce", texto)
-        janela.definir_status("Pensando…")
-        resposta = cerebro.responder(texto)
-        log.info("resposta: %s", resposta)
-        janela.adicionar("jully", resposta)
+        window.add("you", text)
+        window.set_status("Thinking…")
+        answer = brain.reply(text)
+        log.info("answer: %s", answer)
+        window.add("jully", answer)
 
-        janela.definir_status("Falando…")
-        ouvido.pausar()  # não escutar a própria voz
+        window.set_status("Speaking…")
+        ear.pause()  # do not listen to her own voice
         try:
-            falar.dizer(resposta)
+            speak.say(answer)
         except Exception:
-            log.exception("erro ao falar")
-        ouvido.retomar()
-        janela.definir_status("")
-        replica = config.REPLICA and tipo != "texto"
+            log.exception("error while speaking")
+        ear.resume()
+        window.set_status("")
+        follow_up = config.FOLLOW_UP and kind != "text"
 
-    ouvido.fechar()
+    ear.close()
 
 
-def icone():
+def tray_icon():
     img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     d.ellipse((4, 4, 60, 60), fill=(138, 92, 246, 255))
@@ -134,38 +135,68 @@ def icone():
     return img
 
 
+def apply_settings(values):
+    """Called by the settings window: write to the .env and return what needs a restart."""
+    log.info("settings saved: %s", sorted(values))
+    return config.apply(values)
+
+
+def clear_history():
+    import brain
+    brain.clear_history()
+
+
+def request_restart():
+    global restart
+    restart = True
+    stop.set()
+    window.close()
+
+
 def main():
-    global janela
-    validar()
+    global window
+    validate()
 
-    from ui import Janela
+    from ui import Window
 
-    janela = Janela(
-        ao_enviar=lambda t: fila.put(("texto", t)),
-        ao_mic=lambda: fila.put(("mic", None)),
+    icon = tray_icon()
+    window = Window(
+        on_send=lambda t: requests.put(("text", t)),
+        on_mic=lambda: requests.put(("mic", None)),
+        on_save_settings=apply_settings,
+        on_restart=request_restart,
+        on_clear=clear_history,
+        icon=icon,
     )
-    threading.Thread(target=laco, daemon=True).start()
+    resumed = tools.resume_timers()
+    if resumed:
+        log.info("%d timer(s) resumed", resumed)
+    threading.Thread(target=loop, daemon=True).start()
 
-    def alternar(ic, item):
-        pausado.clear() if pausado.is_set() else pausado.set()
-
-    def abrir(ic, item):
-        janela.mostrar()
-
-    def sair(ic, item):
-        parar.set()
-        janela.fechar()
+    def toggle(ic, item):
+        paused.clear() if paused.is_set() else paused.set()
 
     menu = pystray.Menu(
-        pystray.MenuItem("Abrir janela", abrir, default=True),
-        pystray.MenuItem("Pausar palavra de ativação", alternar, checked=lambda item: pausado.is_set()),
-        pystray.MenuItem("Sair", sair),
+        pystray.MenuItem("Open window", lambda ic, item: window.show(), default=True),
+        pystray.MenuItem("Settings", lambda ic, item: window.open_settings()),
+        pystray.MenuItem("Pause wake word", toggle, checked=lambda item: paused.is_set()),
+        pystray.MenuItem("Quit", lambda ic, item: (stop.set(), window.close())),
     )
-    bandeja = pystray.Icon("Jully", icone(), "Jully", menu)
-    bandeja.run_detached()
+    tray = pystray.Icon("Jully", icon, "Jully", menu)
+    tray.run_detached()
 
-    janela.executar(oculta="--oculto" in sys.argv)
-    bandeja.stop()
+    no_ai = not config.AI_CONFIGURED
+    if no_ai:
+        window.add("notice", "The AI key is missing. Fill it in on the AI tab of the settings.")
+        window.open_settings()
+
+    # "--oculto" is the old name of the flag, kept so existing startup shortcuts still work
+    hidden = ("--hidden" in sys.argv or "--oculto" in sys.argv) and not no_ai
+    window.run(hidden=hidden)
+    tray.stop()
+    if restart:
+        subprocess.Popen([sys.executable] + [a for a in sys.argv if a not in ("--hidden", "--oculto")],
+                         cwd=config.ROOT)
 
 
 if __name__ == "__main__":
