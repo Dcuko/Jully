@@ -1,5 +1,6 @@
 import ctypes
 import logging
+import os
 import queue
 import subprocess
 import sys
@@ -8,9 +9,15 @@ import winsound
 from ctypes import wintypes
 from pathlib import Path
 
-import pystray
-from PIL import Image, ImageDraw
+# Under pythonw there is no console and sys.stdout/stderr are None; libraries that print progress
+# bars while downloading models (tqdm, huggingface_hub, openwakeword) then crash on first run.
+for _name in ("stdout", "stderr"):
+    if getattr(sys, _name) is None:
+        setattr(sys, _name, open(os.devnull, "w", encoding="utf-8"))
 
+import pystray
+
+import branding
 import config
 import tools
 
@@ -30,6 +37,15 @@ requests = queue.Queue()  # requests from the window: ("text", str) or ("mic", N
 window = None
 restart = False
 instance_lock = None
+
+
+def set_app_identity():
+    """Give Jully its own taskbar identity. Without it Windows files her window under python(w).exe,
+    so the taskbar shows the Python icon instead of the Jully one."""
+    try:
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("Jully.Assistant")
+    except OSError:
+        log.warning("could not set the app identity")
 
 
 def fatal_error(msg):
@@ -143,15 +159,6 @@ def _loop():
     ear.close()
 
 
-def tray_icon():
-    img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-    d.ellipse((4, 4, 60, 60), fill=(138, 92, 246, 255))
-    d.rectangle((26, 16, 38, 40), fill="white")
-    d.ellipse((26, 36, 38, 48), fill="white")
-    return img
-
-
 def apply_settings(values):
     """Called by the settings window: write to the .env and return what needs a restart."""
     log.info("settings saved: %s", sorted(values))
@@ -173,6 +180,7 @@ def request_restart():
 def main():
     global window
     acquire_single_instance()
+    set_app_identity()
     validate()
 
     from ui import Window
@@ -181,14 +189,12 @@ def main():
     # "--oculto" is the old name of the flag, kept so existing startup shortcuts still work
     hidden = ("--hidden" in sys.argv or "--oculto" in sys.argv) and not no_ai
 
-    icon = tray_icon()
     window = Window(
         on_send=lambda t: requests.put(("text", t)),
         on_mic=lambda: requests.put(("mic", None)),
         on_save_settings=apply_settings,
         on_restart=request_restart,
         on_clear=clear_history,
-        icon=icon,
         hidden=hidden,
     )
     resumed = tools.resume_timers()
@@ -205,7 +211,7 @@ def main():
         pystray.MenuItem("Pause wake word", toggle, checked=lambda item: paused.is_set()),
         pystray.MenuItem("Quit", lambda ic, item: (stop.set(), window.close())),
     )
-    tray = pystray.Icon("Jully", icon, "Jully", menu)
+    tray = pystray.Icon("Jully", branding.icon_image(64), "Jully", menu)
     tray.run_detached()
 
     if no_ai:

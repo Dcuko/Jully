@@ -39,6 +39,11 @@ def clean_env():
     return {k: v for k, v in os.environ.items() if k not in drop and not k.startswith(("_PYI", "_MEI"))}
 
 
+def bundled_file(name):
+    """A file from assets/, either inside the exe (PyInstaller) or next to this script."""
+    return Path(getattr(sys, "_MEIPASS", ROOT)) / "assets" / name
+
+
 def run(cmd):
     return subprocess.run([str(c) for c in cmd], capture_output=True, text=True, creationflags=NO_WINDOW,
                           env=clean_env())
@@ -86,7 +91,7 @@ def message(text, icon=0x40):
 class Installer:
     """Progress window; the work runs in a thread and talks to the window through a queue."""
 
-    BG, PANEL, TEXT, MUTED, PURPLE = "#16161e", "#1f2030", "#e6e6ef", "#8b8ba3", "#8a5cf6"
+    BG, PANEL, TEXT, MUTED, ACCENT = "#17130f", "#201b17", "#f3ede6", "#a0968c", "#e66d28"  # same as theme.py
 
     def __init__(self, args):
         self.args = args
@@ -98,17 +103,26 @@ class Installer:
         self.root.configure(bg=self.BG)
         self.root.resizable(False, False)
 
-        tk.Label(self.root, text="Setting up Jully", bg=self.BG, fg=self.TEXT,
-                 font=("Segoe UI", 15, "bold")).pack(anchor="w", padx=20, pady=(18, 0))
-        tk.Label(self.root, text="This only happens once and can take a few minutes.", bg=self.BG,
-                 fg=self.MUTED, font=("Segoe UI", 9)).pack(anchor="w", padx=20)
+        head = tk.Frame(self.root, bg=self.BG)
+        head.pack(fill="x", padx=20, pady=(18, 0))
+        icon = bundled_file("icon_64.png")
+        if icon.exists():
+            self._icon = tk.PhotoImage(file=str(icon))  # keep the reference
+            self.root.iconphoto(True, self._icon)
+            tk.Label(head, image=self._icon, bg=self.BG).pack(side="left", padx=(0, 14))
+        titles = tk.Frame(head, bg=self.BG)
+        titles.pack(side="left")
+        tk.Label(titles, text="Setting up Jully", bg=self.BG, fg=self.TEXT,
+                 font=("Segoe UI", 15, "bold")).pack(anchor="w")
+        tk.Label(titles, text="This only happens once and can take a few minutes.", bg=self.BG,
+                 fg=self.MUTED, font=("Segoe UI", 9)).pack(anchor="w")
         self.status = tk.Label(self.root, text="Starting…", bg=self.BG, fg=self.TEXT, font=("Segoe UI", 10),
                                anchor="w")
         self.status.pack(fill="x", padx=20, pady=(14, 4))
         style = ttk.Style(self.root)
         style.theme_use("clam")
-        style.configure("J.Horizontal.TProgressbar", troughcolor=self.PANEL, background=self.PURPLE,
-                        bordercolor=self.PANEL, lightcolor=self.PURPLE, darkcolor=self.PURPLE)
+        style.configure("J.Horizontal.TProgressbar", troughcolor=self.PANEL, background=self.ACCENT,
+                        bordercolor=self.PANEL, lightcolor=self.ACCENT, darkcolor=self.ACCENT)
         self.bar = ttk.Progressbar(self.root, mode="indeterminate", style="J.Horizontal.TProgressbar")
         self.bar.pack(fill="x", padx=20)
         self.bar.start(12)

@@ -5,7 +5,8 @@ from datetime import datetime
 
 import config
 from overlay import Overlay
-from theme import (AMBER, BORDER, BUBBLE_JULLY, FIELD, FONT, BG, GREEN, MUTED, PANEL, PURPLE, RED,
+from branding import ASSETS, mark_image
+from theme import (ACCENT, AMBER, BG, BORDER, BUBBLE_JULLY, FIELD, FONT, GREEN, MUTED, ON_ACCENT, PANEL, RED,
                    TEXT, FlatButton, apply_style)
 
 PLACEHOLDER = "Type a request…"
@@ -22,7 +23,7 @@ _STATES = {
 class Window:
     """Chat window. The public methods are safe to call from other threads."""
 
-    def __init__(self, on_send, on_mic, on_save_settings, on_restart, on_clear, icon=None, hidden=False):
+    def __init__(self, on_send, on_mic, on_save_settings, on_restart, on_clear, hidden=False):
         self._on_send = on_send
         self._on_mic = on_mic
         self._on_save_settings = on_save_settings
@@ -45,10 +46,8 @@ class Window:
         self.root.bind("<Escape>", lambda e: self.hide())
         apply_style(self.root)
         self.overlay = Overlay(self.root)
-        if icon is not None:
-            from PIL import ImageTk
-            self._icon = ImageTk.PhotoImage(icon)  # keep the reference
-            self.root.iconphoto(True, self._icon)
+        # The taskbar and the title bar only use a real .ico (iconphoto is ignored by the taskbar)
+        self.root.iconbitmap(default=str(ASSETS / "icon.ico"))
 
         self._build_header()
         self._build_input()
@@ -65,12 +64,15 @@ class Window:
         header = tk.Frame(self.root, bg=PANEL, padx=14, pady=10)
         header.pack(side="top", fill="x")
 
+        from PIL import ImageTk
+        self._logo = ImageTk.PhotoImage(mark_image(26))  # keep the reference
+        tk.Label(header, image=self._logo, bg=PANEL).pack(side="left", padx=(0, 8))
+        tk.Label(header, text="Jully", bg=PANEL, fg=TEXT, font=(FONT, 13, "bold")).pack(side="left")
         self.dot = tk.Canvas(header, width=10, height=10, bg=PANEL, highlightthickness=0)
         self._dot_shape = self.dot.create_oval(1, 1, 9, 9, fill=MUTED, outline="")
-        self.dot.pack(side="left", padx=(0, 8))
-        tk.Label(header, text="Jully", bg=PANEL, fg=TEXT, font=(FONT, 13, "bold")).pack(side="left")
+        self.dot.pack(side="left", padx=(14, 6))
         self.status = tk.Label(header, bg=PANEL, fg=MUTED, font=(FONT, 9))
-        self.status.pack(side="left", padx=(10, 0))
+        self.status.pack(side="left")
 
         for text, command in (("⚙", self.open_settings), ("🗑", self._clear)):
             FlatButton(header, text, command, color=PANEL, hover=FIELD, fg=TEXT, font=("Segoe UI Emoji", 12),
@@ -80,7 +82,7 @@ class Window:
         bar = tk.Frame(self.root, bg=PANEL, padx=10, pady=10)
         bar.pack(side="bottom", fill="x")
 
-        field = tk.Frame(bar, bg=FIELD, highlightthickness=1, highlightbackground=BORDER, highlightcolor=PURPLE)
+        field = tk.Frame(bar, bg=FIELD, highlightthickness=1, highlightbackground=BORDER, highlightcolor=ACCENT)
         field.pack(side="left", fill="x", expand=True, padx=(0, 8))
         self.entry = tk.Entry(field, bg=FIELD, fg=MUTED, insertbackground=TEXT, bd=0,
                               highlightthickness=0, font=(FONT, 11))
@@ -100,7 +102,7 @@ class Window:
         frame.pack(side="top", fill="both", expand=True)
         self.chat = tk.Text(
             frame, wrap="word", state="disabled", bg=BG, fg=TEXT, bd=0, highlightthickness=0,
-            padx=14, pady=12, font=(FONT, 11), cursor="arrow", selectbackground=PURPLE)
+            padx=14, pady=12, font=(FONT, 11), cursor="arrow", selectbackground=ACCENT)
         scroll = tk.Scrollbar(frame, command=self.chat.yview, bg=BG, troughcolor=BG, bd=0, width=8)
         self.chat.configure(yscrollcommand=scroll.set)
         scroll.pack(side="right", fill="y")
@@ -108,8 +110,8 @@ class Window:
 
         tag = self.chat.tag_configure
         tag("label_you", foreground=MUTED, justify="right", font=(FONT, 8), rmargin=8, spacing1=6)
-        tag("label_jully", foreground=PURPLE, justify="left", font=(FONT, 8), lmargin1=8, spacing1=6)
-        tag("you", background=PURPLE, foreground="white", justify="right",
+        tag("label_jully", foreground=ACCENT, justify="left", font=(FONT, 8), lmargin1=8, spacing1=6)
+        tag("you", background=ACCENT, foreground=ON_ACCENT, justify="right",
             lmargin1=70, lmargin2=70, rmargin=8, spacing1=2, spacing3=6)
         tag("jully", background=BUBBLE_JULLY, foreground=TEXT, justify="left",
             lmargin1=8, lmargin2=8, rmargin=70, spacing1=2, spacing3=6)
@@ -175,7 +177,7 @@ class Window:
                 color, label = c, l
         self.dot.itemconfigure(self._dot_shape, fill=color)
         self.status.configure(text=label)
-        self.mic_button.set_color(RED if color == RED else PURPLE, "#c93a3f" if color == RED else None)
+        self.mic_button.set_color(RED if color == RED else ACCENT, "#c93a3f" if color == RED else None)
         self._state = text
         if not text or text.startswith("Listening"):
             self._heard = ""

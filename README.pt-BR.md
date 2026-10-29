@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/logo.svg" width="120" alt="Logo da Jully"></p>
+
 # Jully
 
 🌎 [English](README.md) · Português (Brasil)

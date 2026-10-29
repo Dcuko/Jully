@@ -9,7 +9,7 @@ from tkinter import messagebox, ttk
 import config
 import llm
 import speak
-from theme import BORDER, FIELD, FONT, BG, GREEN, MUTED, PANEL, PURPLE, RED, TEXT, FlatButton
+from theme import ACCENT, BG, BORDER, FIELD, FONT, GREEN, MUTED, ON_ACCENT, PANEL, RED, TEXT, FlatButton
 
 # name -> (API address, text model, vision model); None keeps what is already in the fields
 PROVIDERS = {
@@ -101,7 +101,9 @@ class SettingsWindow:
     def _show_tab(self, name):
         for n, page in self._pages.items():
             page.pack_forget()
-            self._tab_buttons[n].set_color(PURPLE if n == name else FIELD, PURPLE if n == name else BORDER)
+            active = n == name
+            self._tab_buttons[n].set_color(ACCENT if active else FIELD, ACCENT if active else BORDER,
+                                           fg=ON_ACCENT if active else TEXT)
         self._pages[name].pack(fill="both", expand=True, pady=(0, 6))
 
     # ---- field helpers ----
@@ -114,7 +116,7 @@ class SettingsWindow:
 
     def _entry(self, parent, key, secret=False):
         var = self.vars[key] = tk.StringVar()
-        frame = tk.Frame(parent, bg=FIELD, highlightthickness=1, highlightbackground=BORDER, highlightcolor=PURPLE)
+        frame = tk.Frame(parent, bg=FIELD, highlightthickness=1, highlightbackground=BORDER, highlightcolor=ACCENT)
         frame.pack(fill="x", pady=(3, 0))
         e = tk.Entry(frame, textvariable=var, bg=FIELD, fg=TEXT, insertbackground=TEXT, bd=0,
                      highlightthickness=0, font=(FONT, 10), show="•" if secret else "")
@@ -164,7 +166,7 @@ class SettingsWindow:
 
         self._label(p, "API key", "Stays only in your .env. Local Ollama needs no key.")
         self._entry(p, "LLM_API_KEY", secret=True)
-        link = tk.Label(p, text="Get a free key from Groq", bg=PANEL, fg=PURPLE, cursor="hand2",
+        link = tk.Label(p, text="Get a free key from Groq", bg=PANEL, fg=ACCENT, cursor="hand2",
                         font=(FONT, 9, "underline"), anchor="w")
         link.pack(fill="x", pady=(2, 0))
         link.bind("<Button-1>", lambda e: webbrowser.open("https://console.groq.com/keys"))

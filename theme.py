@@ -2,15 +2,17 @@
 import tkinter as tk
 from tkinter import ttk
 
-BG = "#16161e"
-PANEL = "#1f2030"
-FIELD = "#272a3d"
-BORDER = "#34364d"
-TEXT = "#e6e6ef"
-MUTED = "#8b8ba3"
-PURPLE = "#8a5cf6"
-PURPLE_DARK = "#7448e0"
-BUBBLE_JULLY = "#2a2b3d"
+# Palette built around the logo orange (assets/logo.svg)
+BG = "#17130f"
+PANEL = "#201b17"
+FIELD = "#2a241f"
+BORDER = "#3d352e"
+TEXT = "#f3ede6"
+MUTED = "#a0968c"
+ACCENT = "#e66d28"
+ACCENT_DARK = "#c95a1a"
+ON_ACCENT = "#1b130e"  # text on the accent color (white would be too faint on this orange)
+BUBBLE_JULLY = "#2c2621"
 RED = "#e5484d"
 AMBER = "#f5a524"
 GREEN = "#3fb68b"
@@ -21,7 +23,7 @@ FONT = "Segoe UI"
 class FlatButton(tk.Label):
     """Flat button with a hover effect (the native Windows tk.Button ignores colors)."""
 
-    def __init__(self, parent, text, command, color=PURPLE, hover=PURPLE_DARK, fg="white",
+    def __init__(self, parent, text, command, color=ACCENT, hover=ACCENT_DARK, fg=ON_ACCENT,
                  font=(FONT, 10, "bold"), padx=14, pady=6):
         super().__init__(parent, text=text, bg=color, fg=fg, font=font, padx=padx, pady=pady, cursor="hand2")
         self._color, self._hover, self._command, self._fg, self._enabled = color, hover, command, fg, True
@@ -33,9 +35,11 @@ class FlatButton(tk.Label):
         if self._enabled and 0 <= event.x < self.winfo_width() and 0 <= event.y < self.winfo_height():
             self._command()
 
-    def set_color(self, color, hover=None):
+    def set_color(self, color, hover=None, fg=None):
         self._color, self._hover = color, hover or color
-        super().configure(bg=color)
+        if fg is not None:
+            self._fg = fg
+        super().configure(bg=color, fg=self._fg if self._enabled else MUTED)
 
     def enable(self, enabled):
         self._enabled = enabled
@@ -51,11 +55,11 @@ def apply_style(root):
                     selectbackground=FIELD, selectforeground=TEXT, padding=5)
     style.map("TCombobox", fieldbackground=[("readonly", FIELD)], foreground=[("readonly", TEXT)],
               selectbackground=[("readonly", FIELD)], selectforeground=[("readonly", TEXT)],
-              bordercolor=[("focus", PURPLE)])
+              bordercolor=[("focus", ACCENT)])
     style.configure("Horizontal.TScale", background=PANEL, troughcolor=FIELD, bordercolor=PANEL,
-                    lightcolor=PURPLE, darkcolor=PURPLE)
+                    lightcolor=ACCENT, darkcolor=ACCENT)
     root.option_add("*TCombobox*Listbox.background", FIELD)
     root.option_add("*TCombobox*Listbox.foreground", TEXT)
-    root.option_add("*TCombobox*Listbox.selectBackground", PURPLE)
-    root.option_add("*TCombobox*Listbox.selectForeground", "white")
+    root.option_add("*TCombobox*Listbox.selectBackground", ACCENT)
+    root.option_add("*TCombobox*Listbox.selectForeground", ON_ACCENT)
     root.option_add("*TCombobox*Listbox.font", (FONT, 10))
