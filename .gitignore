@@ -1,0 +1,5 @@
+.env
+models/
+jully.log
+__pycache__/
+.venv/

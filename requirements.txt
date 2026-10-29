@@ -1,0 +1,12 @@
+openai
+python-dotenv
+openwakeword
+pvrecorder
+faster-whisper
+edge-tts
+pyperclip
+Pillow
+pywin32
+pystray
+numpy
+miniaudio
