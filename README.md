@@ -11,7 +11,25 @@ openWakeWord (light listening) → beep → record until silence → faster-whis
 faster-whisper only transcribes after the wake word; the rest of the time only openWakeWord runs.
 Jully understands and answers in **English or Portuguese** (setting `LANGUAGE`).
 
-## Installation
+## Quick start (Jully.exe)
+
+1. Install [Python 3.11 or newer](https://www.python.org/downloads/windows/) (tick **Add python.exe to PATH**).
+2. Double-click **`Jully.exe`** (keep it in this folder). The first time it creates the virtual environment and
+   installs the requirements, showing the progress; this takes a few minutes.
+3. Fill in your AI key in the settings window that opens (see [AI key](#1-ai-key-groq-free-no-credit-card)).
+
+From then on, `Jully.exe` just opens Jully right away: it never installs or checks anything again.
+To install the requirements again (e.g. after updating Jully), run `Jully.exe --reinstall`.
+Only one Jully runs at a time; opening it twice shows a notice instead.
+
+The exe is not in the repository. Build it yourself (it is a small launcher, about 11 MB):
+
+```powershell
+.venv\Scripts\pip install -r requirements-dev.txt
+.venv\Scripts\python build_exe.py
+```
+
+## Manual installation
 
 ```powershell
 python -m venv .venv
@@ -54,10 +72,20 @@ The gear icon in the window opens the settings, which write straight to your `.e
 - **AI:** provider, API key, address, text and vision models, and a button to test the connection.
 - **Voice:** language, voice, speech rate (with a button to hear a sample) and the Whisper model/device.
 - **Wake word:** wake word, sensitivity, microphone, gain and minimum speech volume.
-- **General:** keep listening after a reply, what "look at screen" captures, default weather city and allowed websites.
+- **General:** keep listening after a reply, a small status pill, what "look at screen" captures, default weather city and allowed websites.
 
 Almost everything applies immediately. Changing the wake word or the microphone needs a restart (the window offers to restart).
 If the AI key is missing, the settings open by themselves on startup.
+
+## Status pill
+
+When Jully is listening or working, a tiny pill appears in the top-left corner of the screen: **Listening…** (speak now),
+**Transcribing…**, **Thinking…** (with what she understood) and **Speaking…**. It never takes the focus, the mouse
+goes through it, and it stays hidden while the Jully window is in front. A short notice appears if she did not hear
+or understand anything. Turn it off in the General tab (`OVERLAY=0`).
+
+Speech recognition uses Whisper `small` by default, a good balance for English and Portuguese. Change it in the Voice tab
+(`WHISPER_MODEL`): `tiny` and `base` are faster but less accurate, `medium` is more accurate but slower.
 
 ## Examples
 

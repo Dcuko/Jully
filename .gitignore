@@ -5,3 +5,7 @@ __pycache__/
 .venv/
 timers.json
 .pytest_cache/
+Jully.exe
+build/
+dist/
+install.log

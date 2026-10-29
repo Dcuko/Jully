@@ -11,7 +11,25 @@ openWakeWord (escuta leve) → bipe → grava até o silêncio → faster-whispe
 O faster-whisper só transcreve depois da palavra de ativação; no resto do tempo só o openWakeWord roda.
 A Jully entende e responde em **português ou inglês** (configuração `LANGUAGE`).
 
-## Instalação
+## Início rápido (Jully.exe)
+
+1. Instale o [Python 3.11 ou mais novo](https://www.python.org/downloads/windows/) (marque **Add python.exe to PATH**).
+2. Dê dois cliques em **`Jully.exe`** (deixe-o nesta pasta). Na primeira vez ele cria o ambiente virtual e
+   instala os requirements, mostrando o progresso; leva alguns minutos.
+3. Preencha a chave da IA na janela de configurações que abrir (veja [Chave da IA](#1-chave-da-ia-groq-grátis-sem-cartão)).
+
+Depois disso, o `Jully.exe` só abre a Jully na hora: nunca mais instala nem verifica nada.
+Para instalar os requirements de novo (por exemplo, depois de atualizar a Jully), rode `Jully.exe --reinstall`.
+Só uma Jully roda por vez; abrir duas vezes mostra um aviso.
+
+O exe não fica no repositório. Gere o seu (é só um launcher pequeno, uns 11 MB):
+
+```powershell
+.venv\Scripts\pip install -r requirements-dev.txt
+.venv\Scripts\python build_exe.py
+```
+
+## Instalação manual
 
 ```powershell
 python -m venv .venv
@@ -56,11 +74,21 @@ O ícone de engrenagem da janela abre as configurações, que gravam direto no s
 - **IA:** provedor, chave da API, endereço, modelos de texto e de visão, e um botão para testar a conexão.
 - **Voz:** idioma, voz, velocidade (com botão para ouvir um exemplo) e modelo/processador do Whisper.
 - **Ativação:** palavra de ativação, sensibilidade, microfone, ganho e volume mínimo de fala.
-- **Geral:** continuar ouvindo após responder, o que "ver tela" captura, cidade padrão do clima e sites permitidos.
+- **Geral:** continuar ouvindo após responder, a pílula de status, o que "ver tela" captura, cidade padrão do clima e sites permitidos.
 
 Quase tudo vale na hora. Trocar a palavra de ativação ou o microfone pede reiniciar (a janela oferece reiniciar). Se faltar a chave da IA, as configurações abrem sozinhas ao iniciar.
 
 A interface está em inglês; só a voz e as respostas da Jully seguem o idioma escolhido.
+
+## Pílula de status
+
+Quando a Jully está ouvindo ou trabalhando, uma pílula minúscula aparece no canto superior esquerdo da tela: **Listening…** (pode falar),
+**Transcribing…**, **Thinking…** (com o que ela entendeu) e **Speaking…**. Ela nunca rouba o foco, o mouse passa direto
+por ela, e some enquanto a janela da Jully está na frente. Um aviso curto aparece se ela não ouviu ou não entendeu nada.
+Desligue na aba Geral (`OVERLAY=0`).
+
+O reconhecimento de voz usa o Whisper `small` por padrão, um bom equilíbrio para inglês e português. Troque na aba Voz
+(`WHISPER_MODEL`): `tiny` e `base` são mais rápidos e menos precisos, `medium` é mais preciso e mais lento.
 
 ## Exemplos
 

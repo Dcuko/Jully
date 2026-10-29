@@ -1,7 +1,10 @@
+import ctypes
 import queue
 import tkinter as tk
 from datetime import datetime
 
+import config
+from overlay import Overlay
 from theme import (AMBER, BORDER, BUBBLE_JULLY, FIELD, FONT, BG, GREEN, MUTED, PANEL, PURPLE, RED,
                    TEXT, FlatButton, apply_style)
 
@@ -19,7 +22,7 @@ _STATES = {
 class Window:
     """Chat window. The public methods are safe to call from other threads."""
 
-    def __init__(self, on_send, on_mic, on_save_settings, on_restart, on_clear, icon=None):
+    def __init__(self, on_send, on_mic, on_save_settings, on_restart, on_clear, icon=None, hidden=False):
         self._on_send = on_send
         self._on_mic = on_mic
         self._on_save_settings = on_save_settings
@@ -27,8 +30,13 @@ class Window:
         self._on_clear = on_clear
         self._events = queue.Queue()
         self._settings = None
+        self._state = ""  # current status text
+        self._heard = ""  # what Jully understood, shown in the overlay while she works
+        previous_focus = ctypes.windll.user32.GetForegroundWindow()
 
         self.root = tk.Tk()
+        if hidden:
+            self.root.withdraw()  # right away, so it never flashes (and steals the focus) on startup
         self.root.title("Jully")
         self.root.geometry("440x620")
         self.root.minsize(340, 360)
@@ -36,6 +44,7 @@ class Window:
         self.root.protocol("WM_DELETE_WINDOW", self.hide)
         self.root.bind("<Escape>", lambda e: self.hide())
         apply_style(self.root)
+        self.overlay = Overlay(self.root)
         if icon is not None:
             from PIL import ImageTk
             self._icon = ImageTk.PhotoImage(icon)  # keep the reference
@@ -46,6 +55,9 @@ class Window:
         self._build_chat()
         self.set_status("")
         self.root.after(50, self._process)
+        if hidden and previous_focus:
+            # Creating any Tk window moves the Windows focus to an invisible one; give it back
+            ctypes.windll.user32.SetForegroundWindow(previous_focus)
 
     # ---- layout ----
 
@@ -116,6 +128,10 @@ class Window:
     def show(self):
         self._events.put(("show",))
 
+    def notify(self, text):
+        """Flash a short message in the overlay (e.g. when nothing was understood)."""
+        self._events.put(("notify", text))
+
     def open_settings(self):
         self._events.put(("settings",))
 
@@ -160,6 +176,24 @@ class Window:
         self.dot.itemconfigure(self._dot_shape, fill=color)
         self.status.configure(text=label)
         self.mic_button.set_color(RED if color == RED else PURPLE, "#c93a3f" if color == RED else None)
+        self._state = text
+        if not text or text.startswith("Listening"):
+            self._heard = ""
+        self._update_overlay(color, label)
+
+    def _overlay_allowed(self):
+        """The overlay is for when the window is not in front: skip it while the user is looking at it."""
+        in_front = self.root.state() == "normal" and self.root.focus_displayof() is not None
+        return config.OVERLAY and not in_front
+
+    def _update_overlay(self, color=None, label=None):
+        if not self._state or not self._overlay_allowed():
+            self.overlay.hide()
+            return
+        if color is None:
+            color, label = next(((c, l) for p, (c, l) in _STATES.items() if self._state.startswith(p)),
+                                (MUTED, self._state))
+        self.overlay.show(label, color, self._heard)
 
     def _open_settings(self):
         from settings_ui import SettingsWindow
@@ -175,6 +209,13 @@ class Window:
                 ev = self._events.get_nowait()
                 if ev[0] == "msg":
                     self._insert(ev[1], ev[2])
+                    if ev[1] == "you":
+                        self._heard = ev[2] if len(ev[2]) <= 80 else ev[2][:77] + "…"
+                        if self._state:
+                            self._update_overlay()
+                elif ev[0] == "notify":
+                    if self._overlay_allowed():
+                        self.overlay.show(ev[1], AMBER, hide_after_ms=1800)
                 elif ev[0] == "status":
                     self._set_status(ev[1])
                 elif ev[0] == "show":

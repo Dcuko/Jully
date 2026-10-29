@@ -5,6 +5,7 @@ import subprocess
 import sys
 import threading
 import winsound
+from ctypes import wintypes
 from pathlib import Path
 
 import pystray
@@ -28,12 +29,25 @@ paused = threading.Event()
 requests = queue.Queue()  # requests from the window: ("text", str) or ("mic", None)
 window = None
 restart = False
+instance_lock = None
 
 
 def fatal_error(msg):
     log.error(msg)
     ctypes.windll.user32.MessageBoxW(0, msg, "Jully", 0x10)
     sys.exit(1)
+
+
+def acquire_single_instance():
+    """Two Jullys would fight over the microphone: the second one tells the user and exits."""
+    global instance_lock
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.CreateMutexW.restype = wintypes.HANDLE
+    instance_lock = kernel32.CreateMutexW(None, False, "Jully.SingleInstance")
+    if ctypes.get_last_error() == 183:  # ERROR_ALREADY_EXISTS
+        ctypes.windll.user32.MessageBoxW(0, "Jully is already running. Look for its icon in the system tray.",
+                                         "Jully", 0x40)
+        sys.exit(0)
 
 
 def validate():
@@ -96,6 +110,8 @@ def _loop():
             audio = ear.record()  # same as after the wake word: waits for you to start and cuts at the silence
             if audio is None:
                 window.set_status("")
+                if kind != "follow_up":  # silence after a reply is normal; after a wake word it is not
+                    window.notify("Didn't hear anything")
                 continue
             window.set_status("Transcribing…")
             text = ear.transcribe(audio)
@@ -105,6 +121,7 @@ def _loop():
         log.info("request: %s", text)
         if not text:
             window.set_status("")
+            window.notify("Didn't catch that")
             continue
 
         window.add("you", text)
@@ -155,9 +172,14 @@ def request_restart():
 
 def main():
     global window
+    acquire_single_instance()
     validate()
 
     from ui import Window
+
+    no_ai = not config.AI_CONFIGURED
+    # "--oculto" is the old name of the flag, kept so existing startup shortcuts still work
+    hidden = ("--hidden" in sys.argv or "--oculto" in sys.argv) and not no_ai
 
     icon = tray_icon()
     window = Window(
@@ -167,6 +189,7 @@ def main():
         on_restart=request_restart,
         on_clear=clear_history,
         icon=icon,
+        hidden=hidden,
     )
     resumed = tools.resume_timers()
     if resumed:
@@ -185,16 +208,14 @@ def main():
     tray = pystray.Icon("Jully", icon, "Jully", menu)
     tray.run_detached()
 
-    no_ai = not config.AI_CONFIGURED
     if no_ai:
         window.add("notice", "The AI key is missing. Fill it in on the AI tab of the settings.")
         window.open_settings()
 
-    # "--oculto" is the old name of the flag, kept so existing startup shortcuts still work
-    hidden = ("--hidden" in sys.argv or "--oculto" in sys.argv) and not no_ai
-    window.run(hidden=hidden)
+    window.run()
     tray.stop()
     if restart:
+        ctypes.windll.kernel32.CloseHandle(instance_lock)  # let the new process take the lock
         subprocess.Popen([sys.executable] + [a for a in sys.argv if a not in ("--hidden", "--oculto")],
                          cwd=config.ROOT)
 

@@ -218,11 +218,13 @@ class SettingsWindow:
         self._slider(p, "MIN_SPEECH_LEVEL", 50, 1000, 10, lambda v: f"{v:.0f}")
 
     def _page_general(self, p):
-        var = self.vars["FOLLOW_UP"] = tk.BooleanVar()
-        tk.Checkbutton(p, text="Keep listening after a reply (no need to repeat the wake word)",
-                       variable=var, bg=PANEL, fg=TEXT, selectcolor=FIELD, activebackground=PANEL,
-                       activeforeground=TEXT, font=(FONT, 10), anchor="w", wraplength=440,
-                       justify="left").pack(fill="x", pady=(2, 0))
+        for key, text in (("FOLLOW_UP", "Keep listening after a reply (no need to repeat the wake word)"),
+                          ("OVERLAY", "Show a small status pill when Jully is listening or working "
+                                      "(so you know when to speak even with the window closed)")):
+            var = self.vars[key] = tk.BooleanVar()
+            tk.Checkbutton(p, text=text, variable=var, bg=PANEL, fg=TEXT, selectcolor=FIELD,
+                           activebackground=PANEL, activeforeground=TEXT, font=(FONT, 10), anchor="w",
+                           wraplength=440, justify="left").pack(fill="x", pady=(2, 0))
 
         self._label(p, "What \"look at screen\" sends to the AI", "The capture goes to the provider chosen in the AI tab.")
         self._combo(p, "SCREEN_CAPTURE", list(CAPTURE_SCOPES.values()), editable=False)
@@ -246,6 +248,7 @@ class SettingsWindow:
         for key in ("WAKEWORD_THRESHOLD", "MIC_GAIN", "MIN_SPEECH_LEVEL"):
             self.vars[key].set(float(v[key]))
         self.vars["FOLLOW_UP"].set(v["FOLLOW_UP"] == "1")
+        self.vars["OVERLAY"].set(v["OVERLAY"] == "1")
         self.vars["SCREEN_CAPTURE"].set(CAPTURE_SCOPES.get(v["SCREEN_CAPTURE"], CAPTURE_SCOPES["screen"]))
         index = int(v["MIC_INDEX"])
         names = self._microphones
@@ -281,6 +284,7 @@ class SettingsWindow:
             "MIC_GAIN": f"{g('MIC_GAIN'):.0f}",
             "MIN_SPEECH_LEVEL": f"{g('MIN_SPEECH_LEVEL'):.0f}",
             "FOLLOW_UP": "1" if g("FOLLOW_UP") else "0",
+            "OVERLAY": "1" if g("OVERLAY") else "0",
             "SCREEN_CAPTURE": scope,
             "CITY": g("CITY").strip(),
             "ALLOWED_SITES": ", ".join(s.strip() for s in g("ALLOWED_SITES").split(",") if s.strip()),

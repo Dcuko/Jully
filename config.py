@@ -44,7 +44,7 @@ DEFAULTS = {
     "LLM_MODEL": "llama-3.1-8b-instant",
     "LLM_VISION_MODEL": "meta-llama/llama-4-scout-17b-16e-instruct",
     "LANGUAGE": "en",
-    "WHISPER_MODEL": "base",
+    "WHISPER_MODEL": "small",
     "WHISPER_DEVICE": "cpu",
     "VOICE": "",  # empty = default voice of the language
     "VOICE_RATE": "+10%",
@@ -54,6 +54,7 @@ DEFAULTS = {
     "MIC_GAIN": "3",
     "MIN_SPEECH_LEVEL": "200",
     "FOLLOW_UP": "1",
+    "OVERLAY": "1",
     "SCREEN_CAPTURE": "screen",
     "CITY": "",
     "ALLOWED_SITES": "google.com, youtube.com, github.com, wikipedia.org, whatsapp.com, "
@@ -111,7 +112,7 @@ def reload():
     global LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, LLM_VISION_MODEL, AI_CONFIGURED, LANGUAGE
     global WHISPER_MODEL, WHISPER_DEVICE, VOICE, VOICE_RATE
     global WAKEWORD, WAKEWORD_THRESHOLD, MIC_INDEX, MIC_GAIN, MIN_SPEECH_LEVEL
-    global FOLLOW_UP, SCREEN_CAPTURE, CITY, ALLOWED_SITES
+    global FOLLOW_UP, OVERLAY, SCREEN_CAPTURE, CITY, ALLOWED_SITES
 
     LLM_API_KEY = os.environ.get("LLM_API_KEY", "").strip()
     LLM_BASE_URL = _text("LLM_BASE_URL")
@@ -139,6 +140,7 @@ def reload():
     MIN_SPEECH_LEVEL = _number("MIN_SPEECH_LEVEL", float)  # minimum volume that counts as speech
 
     FOLLOW_UP = _text("FOLLOW_UP") == "1"  # keep listening after a reply, no wake word needed
+    OVERLAY = _text("OVERLAY") == "1"  # small status pill, useful when the window is closed
     SCREEN_CAPTURE = _text("SCREEN_CAPTURE")  # "screen" (all monitors) or "window" (active window only)
     CITY = os.environ.get("CITY", "").strip()
     ALLOWED_SITES = [

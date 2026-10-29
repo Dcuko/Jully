@@ -80,3 +80,15 @@ def test_old_env_is_migrated_and_keeps_portuguese(tmp_path, monkeypatch):
     assert values == {"LLM_API_KEY": "k", "WAKEWORD_THRESHOLD": "0.3", "FOLLOW_UP": "0", "LANGUAGE": "pt"}
     config._migrate_env()  # idempotent
     assert config.envfile.read(env) == values
+
+
+def test_whisper_small_and_overlay_are_the_defaults(monkeypatch):
+    monkeypatch.delenv("WHISPER_MODEL", raising=False)
+    monkeypatch.delenv("OVERLAY", raising=False)
+    config.reload()
+    assert config.WHISPER_MODEL == "small" and config.OVERLAY
+    monkeypatch.setenv("OVERLAY", "0")
+    config.reload()
+    assert not config.OVERLAY
+    monkeypatch.undo()
+    config.reload()
