@@ -3,3 +3,6 @@ models/
 jully.log
 __pycache__/
 .venv/
+
+# Claude
+.claude/
